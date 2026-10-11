@@ -13,11 +13,15 @@ import { MediaModule } from './media/media.module';
 import { ServiceOfferingsModule } from './service-offerings/service-offerings.module';
 import { GqlThrottlerGuard } from './common/gql-throttler.guard';
 import { StorageModule } from './storage/storage.module';
+import { configValidationSchema } from './config/env-validation.schema';
+import { ActivityModule } from './activity/activity.module';
+import { PlatformStatsModule } from './platform/platform-stats.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validationSchema: configValidationSchema,
     }),
     ThrottlerModule.forRoot([
       {
@@ -43,6 +47,8 @@ import { StorageModule } from './storage/storage.module';
     MediaModule,
     ServiceOfferingsModule,
     StorageModule,
+    ActivityModule,
+    PlatformStatsModule,
   ],
   providers: [
     {

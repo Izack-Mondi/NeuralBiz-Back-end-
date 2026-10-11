@@ -9,12 +9,14 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { EmailModule } from '../email/email.module';
 import { SmsModule } from '../sms/sms.module';
 import { GqlThrottlerGuard } from '../common/gql-throttler.guard';
+import { ActivityModule } from '../activity/activity.module';
 
 @Module({
   imports: [
     PrismaModule,
     EmailModule,
     SmsModule,
+    ActivityModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {

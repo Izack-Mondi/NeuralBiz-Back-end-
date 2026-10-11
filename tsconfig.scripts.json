@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["scripts/smoke-e2e.ts", "test/feed.integration.spec.ts"],
+  "exclude": ["node_modules", "dist"]
+}

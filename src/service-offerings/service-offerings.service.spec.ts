@@ -15,6 +15,7 @@ describe('ServiceOfferingsService', () => {
     };
     prisma = {
       mediaAsset: { findUnique: jest.fn() },
+      serviceOffering: { findMany: jest.fn() },
       $transaction: jest.fn((callback) => callback(transaction)),
     };
     service = new ServiceOfferingsService(prisma as PrismaService);
@@ -53,13 +54,15 @@ describe('ServiceOfferingsService', () => {
   });
 
   it('rejects OPPORTUNITY vertical for service offerings', async () => {
-    await expect(service.createServiceOffering('provider-1', {
-      title: 'Job opportunity',
-      category: 'jobs',
-      skills: [],
-      yearsExperience: 0,
-      vertical: Vertical.OPPORTUNITY,
-    })).rejects.toThrow(BadRequestException);
+    await expect(
+      service.createServiceOffering('provider-1', {
+        title: 'Job opportunity',
+        category: 'jobs',
+        skills: [],
+        yearsExperience: 0,
+        vertical: Vertical.OPPORTUNITY,
+      }),
+    ).rejects.toThrow(BadRequestException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
@@ -71,14 +74,16 @@ describe('ServiceOfferingsService', () => {
       status: 'READY',
     });
 
-    await expect(service.createServiceOffering('user-b', {
-      title: 'Photography',
-      category: 'photography',
-      skills: [],
-      yearsExperience: 0,
-      demoAssetId: 'asset-1',
-      vertical: Vertical.BUSINESS,
-    })).rejects.toThrow(UnauthorizedException);
+    await expect(
+      service.createServiceOffering('user-b', {
+        title: 'Photography',
+        category: 'photography',
+        skills: [],
+        yearsExperience: 0,
+        demoAssetId: 'asset-1',
+        vertical: Vertical.BUSINESS,
+      }),
+    ).rejects.toThrow(UnauthorizedException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
@@ -102,5 +107,42 @@ describe('ServiceOfferingsService', () => {
     expect(transaction.post.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ mediaAssetId: 'asset-1', vertical: Vertical.BUSINESS }),
     });
+  });
+
+  it('lists cursor-paginated offerings with provider summaries', async () => {
+    const createdAt = new Date('2026-01-01T00:00:00.000Z');
+    prisma.serviceOffering.findMany.mockResolvedValue([
+      {
+        id: 'offering-1',
+        title: 'Irrigation installation',
+        category: 'irrigation',
+        skills: ['Drip systems'],
+        yearsExperience: 4,
+        county: 'Nairobi',
+        demoAsset: null,
+        provider: {
+          id: 'provider-1',
+          fullName: 'Provider',
+          location: 'Nairobi',
+          emailVerified: true,
+          phoneVerified: true,
+        },
+        createdAt,
+      },
+    ]);
+
+    const result = await service.listServiceOfferings('viewer-1');
+
+    expect(result.edges).toHaveLength(1);
+    expect(result.edges[0].node.provider).toEqual({
+      id: 'provider-1',
+      fullName: 'Provider',
+      location: 'Nairobi',
+      isVerified: true,
+    });
+    expect(prisma.serviceOffering.findMany.mock.calls[0][0].orderBy).toEqual([
+      { createdAt: 'desc' },
+      { id: 'desc' },
+    ]);
   });
 });

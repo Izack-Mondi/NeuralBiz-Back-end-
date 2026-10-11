@@ -1,10 +1,17 @@
-import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  Logger,
+  Optional,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { SmsService } from '../sms/sms.service';
+import { ActivityService } from '../activity/activity.service';
 import {
   AuthPayload,
   User,
@@ -30,6 +37,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
     private readonly smsService: SmsService,
+    @Optional() private readonly activityService?: ActivityService,
   ) {
     this.jwtExpirationTime = this.configService.get('JWT_EXPIRES_IN') || '15m';
     this.refreshTokenExpirationTime = this.configService.get('REFRESH_TOKEN_EXPIRES_IN') || '7d';
@@ -39,7 +47,9 @@ export class AuthService {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-  private async generateTokens(userId: string): Promise<{ accessToken: string; refreshToken: string }> {
+  private async generateTokens(
+    userId: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const accessToken = this.jwtService.sign(
       { sub: userId },
       { expiresIn: this.jwtExpirationTime as any },
@@ -81,8 +91,6 @@ export class AuthService {
   }
 
   async register(input: RegisterInput): Promise<AuthPayload> {
-    this.logger.log(`DEBUG register called with verificationMethod: ${input.verificationMethod}`);
-    
     // Check if user already exists and is verified
     const existingUser = await this.prisma.user.findUnique({
       where: { email: input.email },
@@ -107,6 +115,7 @@ export class AuthService {
           interests: [],
         },
       });
+      await this.activityService?.record('USER_REGISTERED', user.id);
     }
 
     // Generate and store verification code
@@ -133,21 +142,23 @@ export class AuthService {
 
     // Send verification code based on verification method
     const verificationMethod = input.verificationMethod || 'EMAIL';
-    this.logger.log(`DEBUG using verification method: ${verificationMethod}`);
     try {
       if (verificationMethod === 'PHONE') {
         await this.smsService.sendVerificationSms(user.phoneNumber, code);
       } else {
         await this.emailService.sendVerificationEmail(user.email, code);
       }
-    } catch (err) {
-      this.logger.error(`Failed to send verification code via ${verificationMethod}: ${err instanceof Error ? err.message : String(err)}`);
+    } catch {
+      this.logger.error(
+        `Failed to send registration verification userId=${user.id} method=${verificationMethod}`,
+      );
       // Don't fail the whole registration - the user and code already exist,
       // they can retry via resendVerificationCode.
     }
-    const message = verificationMethod === 'PHONE' 
-      ? 'Registration successful. Please check your phone for verification code.'
-      : 'Registration successful. Please check your email for verification code.';
+    const message =
+      verificationMethod === 'PHONE'
+        ? 'Registration successful. Please check your phone for verification code.'
+        : 'Registration successful. Please check your email for verification code.';
 
     return {
       accessToken: null,
@@ -254,15 +265,18 @@ export class AuthService {
       } else {
         await this.emailService.sendVerificationEmail(user.email, code);
       }
-    } catch (err) {
-      this.logger.error(`Failed to send verification code via ${verificationMethod}: ${err instanceof Error ? err.message : String(err)}`);
+    } catch {
+      this.logger.error(
+        `Failed to resend verification userId=${user.id} method=${verificationMethod}`,
+      );
       // Don't fail the whole resend - the user and code already exist,
       // they can retry again.
     }
 
-    const message = verificationMethod === 'PHONE' 
-      ? 'Verification code resent. Please check your phone.'
-      : 'Verification code resent. Please check your email.';
+    const message =
+      verificationMethod === 'PHONE'
+        ? 'Verification code resent. Please check your phone.'
+        : 'Verification code resent. Please check your email.';
 
     return {
       accessToken: null,
@@ -314,7 +328,7 @@ export class AuthService {
       try {
         const token = authHeader.replace('Bearer ', '');
         const payload = this.jwtService.verify(token);
-        
+
         // Verify the userId from token matches the input userId
         if (payload.sub !== input.userId) {
           throw new UnauthorizedException('User ID mismatch');
@@ -343,7 +357,9 @@ export class AuthService {
       // Security check: only allow profile completion during onboarding
       // User must be in PENDING state
       if (user.status !== 'PENDING') {
-        throw new BadRequestException('Profile can only be completed during onboarding. Please login to update your profile.');
+        throw new BadRequestException(
+          'Profile can only be completed during onboarding. Please login to update your profile.',
+        );
       }
     }
 
@@ -370,10 +386,7 @@ export class AuthService {
   async login(input: LoginInput): Promise<AuthPayload> {
     const user = await this.prisma.user.findFirst({
       where: {
-        OR: [
-          { email: input.identifier },
-          { phoneNumber: input.identifier },
-        ],
+        OR: [{ email: input.identifier }, { phoneNumber: input.identifier }],
       },
     });
 

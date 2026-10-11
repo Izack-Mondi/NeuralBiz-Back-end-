@@ -1,7 +1,22 @@
 import { Field, ObjectType, InputType, ID, Int, Float } from '@nestjs/graphql';
-import { IsNotEmpty, IsString, IsOptional, IsArray, IsInt, IsNumber, IsIn, Min, Max, ArrayMaxSize, Length, IsEnum } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsArray,
+  IsInt,
+  IsNumber,
+  IsIn,
+  Min,
+  Max,
+  ArrayMaxSize,
+  Length,
+  IsEnum,
+  IsUUID,
+} from 'class-validator';
 import { KENYA_COUNTIES } from '../common/kenya-counties';
 import { Vertical } from '../common/vertical-assignment';
+import { PageInfo, PostAuthor, PostMedia } from '../feed/feed.types';
 
 @ObjectType()
 export class ServiceOffering {
@@ -35,11 +50,35 @@ export class ServiceOffering {
   @Field(() => ID, { nullable: true })
   demoAssetId?: string;
 
+  @Field(() => PostAuthor)
+  provider: PostAuthor;
+
+  @Field(() => PostMedia, { nullable: true })
+  media?: PostMedia;
+
   @Field()
   createdAt: Date;
 
   @Field()
   updatedAt: Date;
+}
+
+@ObjectType()
+export class ServiceOfferingEdge {
+  @Field(() => ServiceOffering)
+  node: ServiceOffering;
+
+  @Field()
+  cursor: string;
+}
+
+@ObjectType()
+export class ServiceOfferingConnection {
+  @Field(() => [ServiceOfferingEdge])
+  edges: ServiceOfferingEdge[];
+
+  @Field(() => PageInfo)
+  pageInfo: PageInfo;
 }
 
 @InputType()
@@ -53,6 +92,7 @@ export class CreateServiceOfferingInput {
   @Field()
   @IsNotEmpty()
   @IsString()
+  @Length(2, 60)
   category: string;
 
   @Field({ nullable: true })
@@ -92,6 +132,7 @@ export class CreateServiceOfferingInput {
 
   @Field(() => ID, { nullable: true })
   @IsOptional()
+  @IsUUID()
   demoAssetId?: string;
 
   @Field(() => Vertical)

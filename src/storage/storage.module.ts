@@ -13,6 +13,12 @@ const storageProviders: Provider[] = [
     provide: 'STORAGE_SERVICE',
     useFactory: (configService: ConfigService) => {
       const driver = configService.get<string>('STORAGE_DRIVER') || 'local';
+
+      if (configService.get<string>('NODE_ENV') === 'production' && driver === 'local') {
+        throw new Error(
+          'STORAGE_DRIVER=local is not supported in production; configure shared R2 or S3 storage.',
+        );
+      }
       
       if (driver === 'r2' || driver === 's3') {
         return new S3StorageService(configService);

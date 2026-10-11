@@ -49,6 +49,7 @@ model User {
   mediaAssets     MediaAsset[]
   serviceOfferings ServiceOffering[]
   postViews       PostView[]
+  activityEvents  ActivityEvent[]
 }
 
 model RefreshToken {
@@ -229,4 +230,16 @@ model PostView {
   @@index([postId])
   @@index([userId])
   @@index([createdAt])
+}
+
+model ActivityEvent {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  type      String
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([userId])
 }
