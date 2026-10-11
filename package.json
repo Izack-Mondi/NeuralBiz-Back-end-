@@ -26,7 +26,7 @@
   "license": "ISC",
   "type": "commonjs",
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "node scripts/assert-dev-db.js && ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@apollo/server": "^5.5.1",

@@ -39,6 +39,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     ScheduleModule.forRoot(),
   ],
   providers: [MediaResolver, MediaService, CleanupService],
-  exports: [MediaService],
+  exports: [MediaService, CleanupService],
 })
 export class MediaModule {}

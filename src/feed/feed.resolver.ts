@@ -1,7 +1,18 @@
-import { Resolver, Query, Args, Context, Mutation, ID } from '@nestjs/graphql';
+import { Resolver, Query, Args, Mutation, ID, Int } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { FeedService } from './feed.service';
-import { FeedInput, FeedConnection, PostType, MediaType, PostContact, PlaybackResponse } from './feed.types';
+import {
+  FeedInput,
+  FeedConnection,
+  PostType,
+  MediaType,
+  PostContact,
+  PlaybackResponse,
+  ProductConnection,
+  CreatePostInput,
+  CreateProductInput,
+  CreateServiceInput,
+} from './feed.types';
 import { GqlAuthGuard } from '../auth/gql-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Throttle } from '@nestjs/throttler';
@@ -17,6 +28,28 @@ export class FeedResolver {
     @Args('input') input: FeedInput,
   ): Promise<FeedConnection> {
     return this.feedService.getFeed(input, user.sub);
+  }
+
+  @Query(() => ProductConnection)
+  @UseGuards(GqlAuthGuard)
+  async products(
+    @CurrentUser() user: { sub: string },
+    @Args('first', { type: () => Int, nullable: true, defaultValue: 10 }) first?: number,
+    @Args('after', { nullable: true }) after?: string,
+    @Args('category', { nullable: true }) category?: string,
+    @Args('sellerId', { type: () => ID, nullable: true }) sellerId?: string,
+  ): Promise<ProductConnection> {
+    return this.feedService.getProducts(user.sub, first ?? 10, after, category, sellerId);
+  }
+
+  @Query(() => FeedConnection)
+  @UseGuards(GqlAuthGuard)
+  async myPosts(
+    @CurrentUser() user: { sub: string },
+    @Args('first', { type: () => Int, nullable: true, defaultValue: 10 }) first?: number,
+    @Args('after', { nullable: true }) after?: string,
+  ): Promise<FeedConnection> {
+    return this.feedService.getMyPosts(first ?? 10, after, user.sub);
   }
 
   @Query(() => PostContact)
@@ -35,7 +68,7 @@ export class FeedResolver {
     return this.feedService.getPlayback(postId);
   }
 
-  @Mutation(() => String)
+  @Mutation(() => String, { deprecationReason: 'Use createPostWithInput.' })
   @UseGuards(GqlAuthGuard)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async createPost(
@@ -67,6 +100,20 @@ export class FeedResolver {
   @Mutation(() => String)
   @UseGuards(GqlAuthGuard)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async createPostWithInput(
+    @CurrentUser() user: { sub: string },
+    @Args('input') input: CreatePostInput,
+  ): Promise<string> {
+    const post = await this.feedService.createPost({
+      ...input,
+      authorId: user.sub,
+    });
+    return post.id;
+  }
+
+  @Mutation(() => String, { deprecationReason: 'Use createProductWithInput.' })
+  @UseGuards(GqlAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   async createProduct(
     @CurrentUser() user: any,
     @Args('name') name: string,
@@ -79,6 +126,7 @@ export class FeedResolver {
     @Args('thumbnailUrl', { nullable: true }) thumbnailUrl?: string,
     @Args('mediaType', { nullable: true }) mediaType?: MediaType,
     @Args('mediaAssetId', { nullable: true }) mediaAssetId?: string,
+    @Args('postToFeed', { type: () => Boolean, nullable: true, defaultValue: true }) postToFeed = true,
   ): Promise<string> {
     const product = await this.feedService.createProduct({
       name,
@@ -92,8 +140,23 @@ export class FeedResolver {
       mediaType,
       mediaAssetId,
       sellerId: user.sub,
+      postToFeed,
     });
 
+    return product.id;
+  }
+
+  @Mutation(() => String)
+  @UseGuards(GqlAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async createProductWithInput(
+    @CurrentUser() user: { sub: string },
+    @Args('input') input: CreateProductInput,
+  ): Promise<string> {
+    const product = await this.feedService.createProduct({
+      ...input,
+      sellerId: user.sub,
+    });
     return product.id;
   }
 
@@ -116,7 +179,7 @@ export class FeedResolver {
     return this.feedService.getPlaybacks(postIds);
   }
 
-  @Mutation(() => String)
+  @Mutation(() => String, { deprecationReason: 'Use createServiceOffering instead.' })
   @UseGuards(GqlAuthGuard)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async createService(
@@ -147,5 +210,31 @@ export class FeedResolver {
     });
 
     return service.id;
+  }
+
+  @Mutation(() => String, {
+    deprecationReason: 'Use createServiceOffering instead; legacy services are not published to the feed.',
+  })
+  @UseGuards(GqlAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async createServiceWithInput(
+    @CurrentUser() user: { sub: string },
+    @Args('input') input: CreateServiceInput,
+  ): Promise<string> {
+    const service = await this.feedService.createService({
+      ...input,
+      providerId: user.sub,
+    });
+    return service.id;
+  }
+
+  @Mutation(() => ID)
+  @UseGuards(GqlAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async deletePost(
+    @CurrentUser() user: { sub: string },
+    @Args('postId', { type: () => ID }) postId: string,
+  ): Promise<string> {
+    return this.feedService.deletePost(postId, user.sub);
   }
 }

@@ -1,6 +1,17 @@
 import { Field, ObjectType, InputType, ID, registerEnumType, Int, Float } from '@nestjs/graphql';
 import { Vertical } from '../common/vertical-assignment';
-import { IsOptional, IsInt, Min, Max, IsEnum, IsString } from 'class-validator';
+import {
+  IsOptional,
+  IsInt,
+  Min,
+  Max,
+  IsEnum,
+  IsString,
+  IsUUID,
+  IsNumber,
+  IsBoolean,
+  Length,
+} from 'class-validator';
 import { MediaAssetKind } from '../media/media.types';
 
 export enum PostType {
@@ -42,6 +53,7 @@ registerEnumType(MediaType, {
 export enum PostStatus {
   PUBLISHED = 'PUBLISHED',
   PROCESSING = 'PROCESSING',
+  REJECTED = 'REJECTED',
 }
 
 registerEnumType(PostStatus, {
@@ -242,16 +254,25 @@ export class Post {
   @Field({ nullable: true })
   product?: PostProduct;
 
-  @Field({ nullable: true })
+  @Field({ nullable: true, deprecationReason: 'Use serviceOffering instead.' })
   service?: PostService;
+
+  @Field({ nullable: true })
+  rejectionReason?: string;
 
   @Field(() => PostStatus)
   status: PostStatus;
 
-  @Field(() => Int)
+  @Field(() => Int, {
+    description: 'Deprecated: engagement counts are not currently supported.',
+    deprecationReason: 'Engagement counts are not currently supported.',
+  })
   likesCount: number;
 
-  @Field(() => Int)
+  @Field(() => Int, {
+    description: 'Deprecated: engagement counts are not currently supported.',
+    deprecationReason: 'Engagement counts are not currently supported.',
+  })
   commentsCount: number;
 
   @Field(() => Int)
@@ -314,6 +335,224 @@ export class FeedInput {
   @IsOptional()
   @IsEnum(FeedTab)
   tab?: FeedTab;
+}
+
+@InputType()
+export class CreatePostInput {
+  @Field(() => PostType)
+  @IsEnum(PostType)
+  type: PostType;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @Length(1, 2000)
+  caption?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @Length(1, 2048)
+  mediaUrl?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @Length(1, 2048)
+  thumbnailUrl?: string;
+
+  @Field(() => MediaType, { nullable: true })
+  @IsOptional()
+  @IsEnum(MediaType)
+  mediaType?: MediaType;
+
+  @Field(() => ID, { nullable: true })
+  @IsOptional()
+  @IsUUID()
+  mediaAssetId?: string;
+
+  @Field(() => ID, { nullable: true })
+  @IsOptional()
+  @IsUUID()
+  productId?: string;
+
+  @Field(() => ID, { nullable: true })
+  @IsOptional()
+  @IsUUID()
+  serviceId?: string;
+}
+
+@InputType()
+export class CreateProductInput {
+  @Field()
+  @IsString()
+  @Length(2, 120)
+  name: string;
+
+  @Field(() => Float)
+  @IsNumber()
+  @Min(0)
+  price: number;
+
+  @Field()
+  @IsString()
+  @Length(1, 32)
+  unit: string;
+
+  @Field()
+  @IsString()
+  @Length(2, 60)
+  category: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @Length(1, 2000)
+  description?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @Length(1, 120)
+  location?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @Length(1, 2048)
+  mediaUrl?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @Length(1, 2048)
+  thumbnailUrl?: string;
+
+  @Field(() => MediaType, { nullable: true })
+  @IsOptional()
+  @IsEnum(MediaType)
+  mediaType?: MediaType;
+
+  @Field(() => ID, { nullable: true })
+  @IsOptional()
+  @IsUUID()
+  mediaAssetId?: string;
+
+  @Field(() => Boolean, { nullable: true, defaultValue: true })
+  @IsOptional()
+  @IsBoolean()
+  postToFeed?: boolean;
+}
+
+@InputType()
+export class CreateServiceInput {
+  @Field()
+  @IsString()
+  @Length(2, 120)
+  name: string;
+
+  @Field()
+  @IsString()
+  @Length(2, 60)
+  category: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @Length(1, 2000)
+  description?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @Length(1, 120)
+  location?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @Length(1, 80)
+  price?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @Length(1, 80)
+  availability?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @Length(1, 80)
+  experience?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @Length(1, 2048)
+  mediaUrl?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @Length(1, 2048)
+  thumbnailUrl?: string;
+
+  @Field(() => MediaType, { nullable: true })
+  @IsOptional()
+  @IsEnum(MediaType)
+  mediaType?: MediaType;
+}
+
+@ObjectType()
+export class ProductListing {
+  @Field(() => ID)
+  id: string;
+
+  @Field()
+  name: string;
+
+  @Field({ nullable: true })
+  description?: string;
+
+  @Field(() => Float)
+  price: number;
+
+  @Field()
+  unit: string;
+
+  @Field()
+  category: string;
+
+  @Field({ nullable: true })
+  location?: string;
+
+  @Field(() => PostAuthor)
+  seller: PostAuthor;
+
+  @Field(() => PostMedia, { nullable: true })
+  media?: PostMedia;
+
+  @Field()
+  createdAt: Date;
+}
+
+@ObjectType()
+export class ProductEdge {
+  @Field(() => ProductListing)
+  node: ProductListing;
+
+  @Field()
+  cursor: string;
+}
+
+@ObjectType()
+export class ProductConnection {
+  @Field(() => [ProductEdge])
+  edges: ProductEdge[];
+
+  @Field(() => PageInfo)
+  pageInfo: PageInfo;
 }
 
 @ObjectType()

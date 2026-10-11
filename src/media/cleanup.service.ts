@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service.interface';
 import { MediaAssetStatus } from './media.types';
+import type { MediaAsset } from '@prisma/client';
 
 @Injectable()
 export class CleanupService {
@@ -12,6 +13,24 @@ export class CleanupService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
   ) {}
+
+  async deleteMediaAssetObjects(
+    asset: Pick<MediaAsset, 'id' | 'storageKey' | 'hlsManifestKey' | 'posterKey' | 'previewKey'>,
+  ): Promise<void> {
+    const keys = new Set(
+      [asset.storageKey, asset.hlsManifestKey, asset.posterKey, asset.previewKey]
+        .filter((key): key is string => Boolean(key)),
+    );
+
+    for (const key of keys) {
+      try {
+        await this.storage.deleteObject(key);
+      } catch {
+        this.logger.error(`Failed to delete storage object for assetId=${asset.id}`);
+        throw new Error(`Could not delete storage object for asset ${asset.id}`);
+      }
+    }
+  }
 
   @Cron(CronExpression.EVERY_HOUR)
   async cleanupStuckUploads() {
@@ -32,19 +51,7 @@ export class CleanupService {
 
     for (const asset of stuckAssets) {
       try {
-        // Delete from storage
-        await this.storage.deleteObject(asset.storageKey);
-
-        // Delete HLS outputs if they exist
-        if (asset.hlsManifestKey) {
-          await this.storage.deleteObject(asset.hlsManifestKey);
-        }
-        if (asset.posterKey) {
-          await this.storage.deleteObject(asset.posterKey);
-        }
-        if (asset.previewKey) {
-          await this.storage.deleteObject(asset.previewKey);
-        }
+        await this.deleteMediaAssetObjects(asset);
 
         // Delete from database
         await this.prisma.mediaAsset.delete({

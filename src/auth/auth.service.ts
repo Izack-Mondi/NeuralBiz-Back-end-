@@ -1,10 +1,11 @@
-import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, Logger, Optional } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { SmsService } from '../sms/sms.service';
+import { ActivityService } from '../activity/activity.service';
 import {
   AuthPayload,
   User,
@@ -30,6 +31,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
     private readonly smsService: SmsService,
+    @Optional() private readonly activityService?: ActivityService,
   ) {
     this.jwtExpirationTime = this.configService.get('JWT_EXPIRES_IN') || '15m';
     this.refreshTokenExpirationTime = this.configService.get('REFRESH_TOKEN_EXPIRES_IN') || '7d';
@@ -107,6 +109,7 @@ export class AuthService {
           interests: [],
         },
       });
+      await this.activityService?.record('USER_REGISTERED', user.id);
     }
 
     // Generate and store verification code

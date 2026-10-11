@@ -14,6 +14,8 @@ import { ServiceOfferingsModule } from './service-offerings/service-offerings.mo
 import { GqlThrottlerGuard } from './common/gql-throttler.guard';
 import { StorageModule } from './storage/storage.module';
 import { configValidationSchema } from './config/env-validation.schema';
+import { ActivityModule } from './activity/activity.module';
+import { PlatformStatsModule } from './platform/platform-stats.module';
 
 @Module({
   imports: [
@@ -45,6 +47,8 @@ import { configValidationSchema } from './config/env-validation.schema';
     MediaModule,
     ServiceOfferingsModule,
     StorageModule,
+    ActivityModule,
+    PlatformStatsModule,
   ],
   providers: [
     {

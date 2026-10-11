@@ -85,6 +85,68 @@
 - Docker image builds could not be run locally because Docker is not installed;
   the CI workflow now builds both images.
 
+## Phase 2 — Market and Home completion
+
+### Changes
+
+- Product creation now persists the product and its optional feed post in one
+  transaction; `postToFeed` defaults to true.
+- Added authenticated cursor-paginated `products` and `serviceOfferings`
+  queries with seller/provider summaries, ready-media output, and author-only
+  visibility for processing media.
+- Added `myPosts` with processing/published/rejected states and rejection
+  reasons, plus owner-only `deletePost` with media cleanup coordinated with
+  its database transaction.
+- Added validated input-object mutations while retaining the existing loose
+  mutation forms. The legacy `createPost` and `createProduct` mutations are
+  deprecated; use `createPostWithInput` and `createProductWithInput`.
+- Deprecated the legacy `createService` mutation and `Post.service` field;
+  legacy services are not published in the feed and the database model remains.
+- Added the additive `ActivityEvent` model/migration, best-effort activity
+  recording for registrations, posts, products, offerings, and views, and an
+  admin-email-gated `platformStats` query.
+- Replaced destructive sample seeding with stable-ID upserts for one system
+  user and six Kenyan agriculture/business opportunity posts. Both seed entry
+  points run the development database guard.
+- Kept like/comment counts in the schema and marked them deprecated.
+
+### Files touched
+
+- `.env.example`, `package.json`, `CHANGES.md`
+- `prisma/schema.prisma`, `prisma/migrations/20261011000000_add_activity_events/migration.sql`,
+  `prisma/seed.ts`
+- `src/activity/`, `src/platform/`
+- `src/app.module.ts`, `src/auth/auth.module.ts`, `src/auth/auth.service.ts`,
+  `src/config/env-validation.schema.ts`
+- `src/feed/feed.module.ts`, `src/feed/feed.resolver.ts`,
+  `src/feed/feed.service.ts`, `src/feed/feed.types.ts`,
+  `src/feed/feed-cursor.ts`, `src/feed/post-media.mapper.ts`
+- `src/media/cleanup.service.ts`, `src/media/media.module.ts`
+- `src/service-offerings/service-offerings.module.ts`,
+  `src/service-offerings/service-offerings.resolver.ts`,
+  `src/service-offerings/service-offerings.service.ts`,
+  `src/service-offerings/service-offerings.types.ts`
+- `src/activity/activity.service.spec.ts`,
+  `src/feed/feed.phase2.spec.ts`,
+  `src/platform/platform-stats.service.spec.ts`,
+  `src/service-offerings/service-offerings.service.spec.ts`
+
+### Migrations and deprecations
+
+- Added only `ActivityEvent`, its user relation, and indexes in an additive
+  migration; no existing tables, columns, or data are removed or rewritten.
+- Deprecated `createPost`, `createProduct`, `createService`, `Post.service`,
+  and the likes/comments count fields; replacement mutation names are listed
+  above.
+
+### Validation
+
+- `npm run build` passed.
+- Focused Phase 2 service tests: 15 passed.
+- Full unit suite: 80 passed, 2 skipped.
+- The seed TypeScript file type-check passed without running Prisma CLI.
+- No migration, seed, or integration database command was run.
+
 ## NEEDS HUMAN
 
 - Apply the Render service, pre-deploy migration, health-check, environment,
@@ -97,6 +159,8 @@
 - Set the GitHub Actions repository variable `DATABASE_URL_TEST` to opt in to
   integration tests. It must point to the local CI Postgres service, not a
   hosted database.
+- Set `ADMIN_EMAILS` to a comma-separated allowlist of administrator email
+  addresses before using the `platformStats` query.
 - Resolve the high-severity prototype-pollution advisory
   GHSA-7mx3-vvmw in `@graphql-tools/utils` (pulled in by `@nestjs/graphql`);
   production dependency audit reported two high-severity vulnerability

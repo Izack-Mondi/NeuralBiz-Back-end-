@@ -64,6 +64,7 @@ export const envValidationSchema = Joi.object({
   SMTP_PORT: Joi.number().port(),
   SMTP_USER: Joi.string(),
   SMTP_PASSWORD: Joi.string(),
+  ADMIN_EMAILS: Joi.string(),
 }).unknown(true).prefs({ abortEarly: false });
 
 export const configValidationSchema = {
