@@ -54,13 +54,15 @@ describe('ServiceOfferingsService', () => {
   });
 
   it('rejects OPPORTUNITY vertical for service offerings', async () => {
-    await expect(service.createServiceOffering('provider-1', {
-      title: 'Job opportunity',
-      category: 'jobs',
-      skills: [],
-      yearsExperience: 0,
-      vertical: Vertical.OPPORTUNITY,
-    })).rejects.toThrow(BadRequestException);
+    await expect(
+      service.createServiceOffering('provider-1', {
+        title: 'Job opportunity',
+        category: 'jobs',
+        skills: [],
+        yearsExperience: 0,
+        vertical: Vertical.OPPORTUNITY,
+      }),
+    ).rejects.toThrow(BadRequestException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
@@ -72,14 +74,16 @@ describe('ServiceOfferingsService', () => {
       status: 'READY',
     });
 
-    await expect(service.createServiceOffering('user-b', {
-      title: 'Photography',
-      category: 'photography',
-      skills: [],
-      yearsExperience: 0,
-      demoAssetId: 'asset-1',
-      vertical: Vertical.BUSINESS,
-    })).rejects.toThrow(UnauthorizedException);
+    await expect(
+      service.createServiceOffering('user-b', {
+        title: 'Photography',
+        category: 'photography',
+        skills: [],
+        yearsExperience: 0,
+        demoAssetId: 'asset-1',
+        vertical: Vertical.BUSINESS,
+      }),
+    ).rejects.toThrow(UnauthorizedException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 

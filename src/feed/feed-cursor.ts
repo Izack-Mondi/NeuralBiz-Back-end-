@@ -4,9 +4,7 @@ export interface FeedCursor {
 }
 
 export function encodeFeedCursor(id: string, createdAt: Date): string {
-  return Buffer.from(
-    JSON.stringify({ v: 1, c: createdAt.getTime(), i: id }),
-  ).toString('base64url');
+  return Buffer.from(JSON.stringify({ v: 1, c: createdAt.getTime(), i: id })).toString('base64url');
 }
 
 export function decodeFeedCursor(cursor: string): FeedCursor | null {
@@ -18,11 +16,11 @@ export function decodeFeedCursor(cursor: string): FeedCursor | null {
 
     const data = value as Record<string, unknown>;
     if (
-      data.v !== 1
-      || typeof data.i !== 'string'
-      || !data.i
-      || typeof data.c !== 'number'
-      || !Number.isFinite(data.c)
+      data.v !== 1 ||
+      typeof data.i !== 'string' ||
+      !data.i ||
+      typeof data.c !== 'number' ||
+      !Number.isFinite(data.c)
     ) {
       return null;
     }

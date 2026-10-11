@@ -27,7 +27,10 @@ interface Rendition {
 }
 
 class CommandExecutionError extends Error {
-  constructor(message: string, readonly stderr: string) {
+  constructor(
+    message: string,
+    readonly stderr: string,
+  ) {
     super(message);
   }
 }
@@ -53,7 +56,8 @@ export class VideoProcessingJob {
     const asset = await this.prisma.mediaAsset.findUnique({ where: { id: assetId } });
     if (!asset) throw new Error(`Asset ${assetId} not found`);
     if (asset.kind !== MediaAssetKind.VIDEO) throw new Error(`Asset ${assetId} is not a video`);
-    if (asset.status === MediaAssetStatus.READY || asset.status === MediaAssetStatus.REJECTED) return;
+    if (asset.status === MediaAssetStatus.READY || asset.status === MediaAssetStatus.REJECTED)
+      return;
     if (asset.status !== MediaAssetStatus.PROCESSING) {
       throw new Error(`Asset ${assetId} is not in PROCESSING state`);
     }
@@ -74,7 +78,7 @@ export class VideoProcessingJob {
         return;
       }
 
-      if (metadata.duration >= this.maxDurationSec + 1) {
+      if (metadata.duration > this.maxDurationSec) {
         await this.rejectAsset(assetId, asset.storageKey, 'DURATION_EXCEEDS_LIMIT');
         return;
       }
@@ -103,10 +107,12 @@ export class VideoProcessingJob {
       const posterKey = `${storagePrefix}/poster.jpg`;
       const previewKey = `${storagePrefix}/preview.mp4`;
       for (const file of await readdir(hlsDir)) {
-        const contentType = file.endsWith('.m3u8')
-          ? 'application/vnd.apple.mpegurl'
-          : 'video/mp2t';
-        await this.storage.putObject(`${storagePrefix}/${file}`, path.join(hlsDir, file), contentType);
+        const contentType = file.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl' : 'video/mp2t';
+        await this.storage.putObject(
+          `${storagePrefix}/${file}`,
+          path.join(hlsDir, file),
+          contentType,
+        );
       }
       await this.storage.putObject(posterKey, posterPath, 'image/jpeg');
       await this.storage.putObject(previewKey, previewPath, 'video/mp4');
@@ -142,14 +148,22 @@ export class VideoProcessingJob {
 
   private async getVideoMetadata(videoPath: string): Promise<VideoMetadata> {
     const result = await this.runCommand('ffprobe', [
-      '-v', 'error',
-      '-show_entries', 'format=duration:stream=codec_type,codec_name,width,height',
-      '-of', 'json',
+      '-v',
+      'error',
+      '-show_entries',
+      'format=duration:stream=codec_type,codec_name,width,height',
+      '-of',
+      'json',
       videoPath,
     ]);
     const probe = JSON.parse(result.stdout) as {
       format?: { duration?: string };
-      streams?: Array<{ codec_type?: string; codec_name?: string; width?: number; height?: number }>;
+      streams?: Array<{
+        codec_type?: string;
+        codec_name?: string;
+        width?: number;
+        height?: number;
+      }>;
     };
     const videoStream = probe.streams?.find((stream) => stream.codec_type === 'video');
     if (!videoStream) throw new CommandExecutionError('No video stream', 'NO_VIDEO_STREAM');
@@ -172,25 +186,55 @@ export class VideoProcessingJob {
       .filter((rendition) => rendition.height <= metadata.height)
       .map((rendition) => ({
         ...rendition,
-        width: Math.max(2, Math.floor((metadata.width * rendition.height / metadata.height) / 2) * 2),
+        width: Math.max(
+          2,
+          Math.floor((metadata.width * rendition.height) / metadata.height / 2) * 2,
+        ),
       }));
   }
 
-  private async transcodeToHls(inputPath: string, outputDir: string, renditions: Rendition[]): Promise<void> {
+  private async transcodeToHls(
+    inputPath: string,
+    outputDir: string,
+    renditions: Rendition[],
+  ): Promise<void> {
     for (const rendition of renditions) {
       const name = `${rendition.height}p`;
       await this.runCommand('ffmpeg', [
-        '-hide_banner', '-y', '-i', inputPath,
-        '-map', '0:v:0', '-map', '0:a:0?',
-        '-vf', `scale=${rendition.width}:${rendition.height}`,
-        '-c:v', 'libx264', '-preset', 'veryfast',
-        '-b:v', String(rendition.bitrate),
-        '-maxrate', String(rendition.bitrate),
-        '-bufsize', String(rendition.bitrate * 2),
-        '-c:a', 'aac', '-b:a', '128k',
-        '-f', 'hls', '-hls_time', '4', '-hls_playlist_type', 'vod',
-        '-hls_flags', 'independent_segments',
-        '-hls_segment_filename', path.join(outputDir, `${name}_%03d.ts`),
+        '-hide_banner',
+        '-y',
+        '-i',
+        inputPath,
+        '-map',
+        '0:v:0',
+        '-map',
+        '0:a:0?',
+        '-vf',
+        `scale=${rendition.width}:${rendition.height}`,
+        '-c:v',
+        'libx264',
+        '-preset',
+        'veryfast',
+        '-b:v',
+        String(rendition.bitrate),
+        '-maxrate',
+        String(rendition.bitrate),
+        '-bufsize',
+        String(rendition.bitrate * 2),
+        '-c:a',
+        'aac',
+        '-b:a',
+        '128k',
+        '-f',
+        'hls',
+        '-hls_time',
+        '4',
+        '-hls_playlist_type',
+        'vod',
+        '-hls_flags',
+        'independent_segments',
+        '-hls_segment_filename',
+        path.join(outputDir, `${name}_%03d.ts`),
         path.join(outputDir, `${name}.m3u8`),
       ]);
     }
@@ -206,19 +250,50 @@ export class VideoProcessingJob {
     await writeFile(path.join(outputDir, 'master.m3u8'), `${master.join('\n')}\n`);
   }
 
-  private async generatePoster(inputPath: string, outputPath: string, metadata: VideoMetadata): Promise<void> {
+  private async generatePoster(
+    inputPath: string,
+    outputPath: string,
+    metadata: VideoMetadata,
+  ): Promise<void> {
     await this.runCommand('ffmpeg', [
-      '-hide_banner', '-y', '-ss', '0', '-i', inputPath,
-      '-frames:v', '1', '-vf', `scale=${Math.min(1280, metadata.width)}:-2`, '-q:v', '2', outputPath,
+      '-hide_banner',
+      '-y',
+      '-ss',
+      '0',
+      '-i',
+      inputPath,
+      '-frames:v',
+      '1',
+      '-vf',
+      `scale=${Math.min(1280, metadata.width)}:-2`,
+      '-q:v',
+      '2',
+      outputPath,
     ]);
   }
 
-  private async generatePreview(inputPath: string, outputPath: string, metadata: VideoMetadata): Promise<void> {
+  private async generatePreview(
+    inputPath: string,
+    outputPath: string,
+    metadata: VideoMetadata,
+  ): Promise<void> {
     await this.runCommand('ffmpeg', [
-      '-hide_banner', '-y', '-i', inputPath,
-      '-t', String(Math.min(8, metadata.duration)),
-      '-vf', `scale=-2:${Math.max(2, Math.floor(Math.min(480, metadata.height) / 2) * 2)}`,
-      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '24', '-an', outputPath,
+      '-hide_banner',
+      '-y',
+      '-i',
+      inputPath,
+      '-t',
+      String(Math.min(8, metadata.duration)),
+      '-vf',
+      `scale=-2:${Math.max(2, Math.floor(Math.min(480, metadata.height) / 2) * 2)}`,
+      '-c:v',
+      'libx264',
+      '-preset',
+      'veryfast',
+      '-crf',
+      '24',
+      '-an',
+      outputPath,
     ]);
   }
 
@@ -230,7 +305,10 @@ export class VideoProcessingJob {
     return encode(new Uint8ClampedArray(data), info.width, info.height, 4, 4);
   }
 
-  private async runCommand(command: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
+  private async runCommand(
+    command: string,
+    args: string[],
+  ): Promise<{ stdout: string; stderr: string }> {
     return new Promise((resolve, reject) => {
       const child = spawn(command, args, { windowsHide: true });
       let stdout = '';
@@ -244,8 +322,12 @@ export class VideoProcessingJob {
         }
       }, this.processingTimeoutMs);
 
-      child.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
-      child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+      child.stdout.on('data', (chunk: Buffer) => {
+        stdout += chunk.toString();
+      });
+      child.stderr.on('data', (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
       child.on('error', (error) => {
         clearTimeout(timeout);
         if (!settled) {
@@ -264,11 +346,18 @@ export class VideoProcessingJob {
   }
 
   private getProbeRejectionReason(error: unknown): string | null {
-    if (error instanceof CommandExecutionError && error.stderr === 'NO_VIDEO_STREAM') return 'NO_VIDEO_STREAM';
-    if (error instanceof SyntaxError || (error instanceof CommandExecutionError && error.stderr === 'CORRUPT_FILE')) {
+    if (error instanceof CommandExecutionError && error.stderr === 'NO_VIDEO_STREAM')
+      return 'NO_VIDEO_STREAM';
+    if (
+      error instanceof SyntaxError ||
+      (error instanceof CommandExecutionError && error.stderr === 'CORRUPT_FILE')
+    ) {
       return 'CORRUPT_FILE';
     }
-    if (error instanceof CommandExecutionError && /invalid data|moov atom not found|could not find codec parameters/i.test(error.stderr)) {
+    if (
+      error instanceof CommandExecutionError &&
+      /invalid data|moov atom not found|could not find codec parameters/i.test(error.stderr)
+    ) {
       return 'CORRUPT_FILE';
     }
     return null;
@@ -276,15 +365,31 @@ export class VideoProcessingJob {
 
   private getProcessingRejectionReason(error: unknown): string | null {
     if (!(error instanceof CommandExecutionError)) return null;
-    if (/unknown decoder|decoder .* not found|unsupported codec/i.test(error.stderr)) return 'UNSUPPORTED_CODEC';
-    if (/invalid data found|moov atom not found|error while decoding/i.test(error.stderr)) return 'CORRUPT_FILE';
+    if (/unknown decoder|decoder .* not found|unsupported codec/i.test(error.stderr))
+      return 'UNSUPPORTED_CODEC';
+    if (/invalid data found|moov atom not found|error while decoding/i.test(error.stderr))
+      return 'CORRUPT_FILE';
     return null;
   }
 
   private isSupportedCodec(codec: string): boolean {
     return new Set([
-      'h264', 'hevc', 'mpeg4', 'av1', 'vp8', 'vp9', 'mjpeg', 'prores',
-      'h263', 'mpeg1video', 'mpeg2video', 'theora', 'wmv1', 'wmv2', 'vc1', 'ffv1',
+      'h264',
+      'hevc',
+      'mpeg4',
+      'av1',
+      'vp8',
+      'vp9',
+      'mjpeg',
+      'prores',
+      'h263',
+      'mpeg1video',
+      'mpeg2video',
+      'theora',
+      'wmv1',
+      'wmv2',
+      'vc1',
+      'ffv1',
     ]).has(codec.toLowerCase());
   }
 

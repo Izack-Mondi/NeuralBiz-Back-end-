@@ -1,4 +1,11 @@
-import { Injectable, BadRequestException, UnauthorizedException, Logger, Optional, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  UnauthorizedException,
+  Logger,
+  Optional,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MediaAssetKind, MediaAssetStatus } from '../media/media.types';
@@ -7,7 +14,7 @@ import {
   ServiceOffering,
   ServiceOfferingConnection,
 } from './service-offerings.types';
-import { assignVertical, Vertical } from '../common/vertical-assignment';
+import { Vertical } from '../common/vertical-assignment';
 import { KENYA_COUNTIES } from '../common/kenya-counties';
 import { decodeFeedCursor, encodeFeedCursor } from '../feed/feed-cursor';
 import { toPostMedia } from '../feed/post-media.mapper';
@@ -35,7 +42,9 @@ export class ServiceOfferingsService {
 
     // Validate vertical is BUSINESS or AGRICULTURE (not OPPORTUNITY)
     if (input.vertical === Vertical.OPPORTUNITY) {
-      throw new BadRequestException('Service offerings cannot use OPPORTUNITY vertical. Use BUSINESS or AGRICULTURE.');
+      throw new BadRequestException(
+        'Service offerings cannot use OPPORTUNITY vertical. Use BUSINESS or AGRICULTURE.',
+      );
     }
 
     // Validate demo asset ownership if provided
@@ -93,7 +102,9 @@ export class ServiceOfferingsService {
       return { offering, post };
     });
 
-    this.logger.log(`Created service offering ${result.offering.id} with post ${result.post.id}`);
+    this.logger.log(
+      `Created offeringId=${result.offering.id} postId=${result.post.id} userId=${userId}`,
+    );
     await this.activityService?.record('OFFERING_CREATED', userId, {
       offeringId: result.offering.id,
     });
@@ -164,12 +175,14 @@ export class ServiceOfferingsService {
         },
         { NOT: { demoAsset: { is: { status: MediaAssetStatus.REJECTED } } } },
         ...(cursor
-          ? [{
-            OR: [
-              { createdAt: { lt: new Date(cursor.createdAt) } },
-              { createdAt: new Date(cursor.createdAt), id: { lt: cursor.id } },
-            ],
-          }]
+          ? [
+              {
+                OR: [
+                  { createdAt: { lt: new Date(cursor.createdAt) } },
+                  { createdAt: new Date(cursor.createdAt), id: { lt: cursor.id } },
+                ],
+              },
+            ]
           : []),
       ],
     };

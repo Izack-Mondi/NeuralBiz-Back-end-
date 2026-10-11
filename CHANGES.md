@@ -147,6 +147,54 @@
 - The seed TypeScript file type-check passed without running Prisma CLI.
 - No migration, seed, or integration database command was run.
 
+## Phase 3 — Engineering quality
+
+### Changes
+
+- Split feed writes, product handling, and playback/contact handling into
+  dedicated services while keeping `FeedService` compatibility methods and
+  existing feed behavior.
+- Made view recording transactional and idempotent by Prisma `P2002` code,
+  checking visibility across every attached media asset before counting.
+- Restricted playback and contact access to posts whose attached media is
+  entirely ready; contact access requires authentication and keeps its
+  existing throttle.
+- Restored local-only, opt-in TypeScript integration coverage for media
+  readiness and cursor pagination. Added a GraphQL-only upload-to-feed smoke
+  script, including an optional long-video rejection check.
+- Reject measured video durations strictly above the configured maximum.
+- Added ESLint/Prettier configuration and a CI lint step; documented upload,
+  feed queries, runtime settings, and test workflows.
+- Standardized key operation logs around user, post, and asset identifiers.
+
+### Files touched
+
+- `.github/workflows/ci.yml`, `.prettierrc.json`, `eslint.config.mjs`,
+  `package.json`, `package-lock.json`, `tsconfig.json`,
+  `tsconfig.scripts.json`
+- `README.md`, `CHANGES.md`, `docs/DEPLOY.md`
+- `scripts/run-integration-tests.js`, `scripts/smoke-e2e.ts`,
+  `test/feed.integration.spec.ts`
+- `src/activity/`, `src/auth/auth.service.ts`, `src/feed/`,
+  `src/media/cleanup.service.ts`, `src/platform/`,
+  `src/service-offerings/`, `src/worker/`
+- `prisma/seed.ts`
+
+### Migrations and deprecations
+
+- No Phase 3 migration or GraphQL deprecation was added.
+- The Phase 2 `ActivityEvent` migration remains additive only.
+
+### Validation
+
+- Application build and smoke/integration TypeScript checks passed.
+- Full unit suite before the final visibility corrections: 87 passed,
+  6 skipped. Focused tests after those corrections: 25 passed, 3 skipped.
+- ESLint and build passed; ESLint reports 21 existing unused-code warnings
+  and no errors.
+- Integration tests skipped because `DATABASE_URL_TEST` is not configured;
+  Docker images and the live smoke flow require external runtime setup.
+
 ## NEEDS HUMAN
 
 - Apply the Render service, pre-deploy migration, health-check, environment,
@@ -165,3 +213,7 @@
   GHSA-7mx3-vvmw in `@graphql-tools/utils` (pulled in by `@nestjs/graphql`);
   production dependency audit reported two high-severity vulnerability
   entries. It was left unchanged pending human direction.
+- Review the critical transitive `handlebars` advisory affecting versions
+  4.0.0–4.7.9 (GHSA-xw65-4hp5-5hc7, GHSA-8r5x-fm3f-whwj, and
+  GHSA-p8wg-vrv2-v86f) reported by `npm audit` after adding lint tooling.
+  Dependency versions were not changed; remediation remains a human decision.

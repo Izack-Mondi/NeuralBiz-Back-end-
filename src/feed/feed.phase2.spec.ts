@@ -62,16 +62,12 @@ describe('FeedService Phase 2 operations', () => {
         productId: 'product-1',
       }),
     });
-    expect(activityService.record).toHaveBeenCalledWith(
-      'PRODUCT_CREATED',
-      'seller-1',
-      { productId: 'product-1' },
-    );
-    expect(activityService.record).toHaveBeenCalledWith(
-      'POST_CREATED',
-      'seller-1',
-      { postId: 'post-1' },
-    );
+    expect(activityService.record).toHaveBeenCalledWith('PRODUCT_CREATED', 'seller-1', {
+      productId: 'product-1',
+    });
+    expect(activityService.record).toHaveBeenCalledWith('POST_CREATED', 'seller-1', {
+      postId: 'post-1',
+    });
   });
 
   it('creates a product without a feed post when postToFeed is false', async () => {
@@ -136,7 +132,13 @@ describe('FeedService Phase 2 operations', () => {
       {
         id: 'processing-post',
         authorId: 'seller-1',
-        author: { id: 'seller-1', fullName: 'Seller', location: 'Nairobi', emailVerified: true, phoneVerified: true },
+        author: {
+          id: 'seller-1',
+          fullName: 'Seller',
+          location: 'Nairobi',
+          emailVerified: true,
+          phoneVerified: true,
+        },
         mediaAsset: { status: 'PROCESSING' },
         product: null,
         offering: null,
@@ -147,7 +149,13 @@ describe('FeedService Phase 2 operations', () => {
       {
         id: 'rejected-post',
         authorId: 'seller-1',
-        author: { id: 'seller-1', fullName: 'Seller', location: 'Nairobi', emailVerified: true, phoneVerified: true },
+        author: {
+          id: 'seller-1',
+          fullName: 'Seller',
+          location: 'Nairobi',
+          emailVerified: true,
+          phoneVerified: true,
+        },
         mediaAsset: { status: 'REJECTED', rejectionReason: 'Duration limit exceeded' },
         product: null,
         offering: null,
@@ -158,7 +166,13 @@ describe('FeedService Phase 2 operations', () => {
       {
         id: 'published-post',
         authorId: 'seller-1',
-        author: { id: 'seller-1', fullName: 'Seller', location: 'Nairobi', emailVerified: true, phoneVerified: true },
+        author: {
+          id: 'seller-1',
+          fullName: 'Seller',
+          location: 'Nairobi',
+          emailVerified: true,
+          phoneVerified: true,
+        },
         mediaAsset: null,
         product: null,
         offering: null,
@@ -184,11 +198,13 @@ describe('FeedService Phase 2 operations', () => {
 
     const query = prisma.product.findMany.mock.calls[0][0];
     expect(query.where.sellerId).toBe('seller-2');
-    expect(query.where.AND[0].OR).toEqual(expect.arrayContaining([
-      { sellerId: 'viewer-1' },
-      { mediaAssetId: null },
-      { mediaAsset: { is: { status: 'READY' } } },
-    ]));
+    expect(query.where.AND[0].OR).toEqual(
+      expect.arrayContaining([
+        { sellerId: 'viewer-1' },
+        { mediaAssetId: null },
+        { mediaAsset: { is: { status: 'READY' } } },
+      ]),
+    );
     expect(query.where.AND[0].OR).not.toContainEqual({ sellerId: 'seller-2' });
   });
 });

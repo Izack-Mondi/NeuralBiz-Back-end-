@@ -18,15 +18,16 @@ export class CleanupService {
     asset: Pick<MediaAsset, 'id' | 'storageKey' | 'hlsManifestKey' | 'posterKey' | 'previewKey'>,
   ): Promise<void> {
     const keys = new Set(
-      [asset.storageKey, asset.hlsManifestKey, asset.posterKey, asset.previewKey]
-        .filter((key): key is string => Boolean(key)),
+      [asset.storageKey, asset.hlsManifestKey, asset.posterKey, asset.previewKey].filter(
+        (key): key is string => Boolean(key),
+      ),
     );
 
     for (const key of keys) {
       try {
         await this.storage.deleteObject(key);
       } catch {
-        this.logger.error(`Failed to delete storage object for assetId=${asset.id}`);
+        this.logger.error(`Failed to delete media object assetId=${asset.id}`);
         throw new Error(`Could not delete storage object for asset ${asset.id}`);
       }
     }
@@ -34,7 +35,7 @@ export class CleanupService {
 
   @Cron(CronExpression.EVERY_HOUR)
   async cleanupStuckUploads() {
-    this.logger.log('Starting cleanup of stuck uploads...');
+    this.logger.log('Starting stuck upload cleanup');
 
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
@@ -58,12 +59,12 @@ export class CleanupService {
           where: { id: asset.id },
         });
 
-        this.logger.log(`Cleaned up stuck asset ${asset.id}`);
-      } catch (error) {
-        this.logger.error(`Failed to cleanup asset ${asset.id}: ${error}`);
+        this.logger.log(`Cleaned up assetId=${asset.id} userId=${asset.ownerId}`);
+      } catch {
+        this.logger.error(`Failed to clean up assetId=${asset.id} userId=${asset.ownerId}`);
       }
     }
 
-    this.logger.log('Cleanup completed');
+    this.logger.log('Stuck upload cleanup completed');
   }
 }

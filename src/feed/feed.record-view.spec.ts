@@ -53,6 +53,7 @@ describe('FeedService recordView', () => {
     const result = await feedService.recordView('post-1', 'user-1');
 
     expect(result).toBe('post-1');
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(prisma.postView.create).toHaveBeenCalledWith({
       data: {
         postId: 'post-1',
@@ -100,7 +101,7 @@ describe('FeedService recordView', () => {
     expect(prisma.post.update).not.toHaveBeenCalled();
   });
 
-  it('skips view recording for author\'s own posts', async () => {
+  it("skips view recording for author's own posts", async () => {
     prisma.post.findUnique.mockResolvedValue({
       id: 'post-1',
       authorId: 'user-1',
@@ -132,6 +133,36 @@ describe('FeedService recordView', () => {
     const result = await feedService.recordView('post-1', 'user-1');
 
     expect(result).toBe('post-1');
+    expect(prisma.postView.create).not.toHaveBeenCalled();
+    expect(prisma.post.update).not.toHaveBeenCalled();
+  });
+
+  it('does not record views for rejected media, including the author', async () => {
+    prisma.post.findUnique.mockResolvedValue({
+      id: 'post-1',
+      authorId: 'user-1',
+      mediaAsset: { status: 'REJECTED' },
+      product: null,
+      offering: null,
+    });
+
+    await feedService.recordView('post-1', 'user-1');
+
+    expect(prisma.postView.create).not.toHaveBeenCalled();
+    expect(prisma.post.update).not.toHaveBeenCalled();
+  });
+
+  it('does not record views when a related offering asset is rejected', async () => {
+    prisma.post.findUnique.mockResolvedValue({
+      id: 'post-1',
+      authorId: 'user-2',
+      mediaAsset: { status: 'READY' },
+      product: null,
+      offering: { demoAsset: { status: 'REJECTED' } },
+    });
+
+    await feedService.recordView('post-1', 'user-1');
+
     expect(prisma.postView.create).not.toHaveBeenCalled();
     expect(prisma.post.update).not.toHaveBeenCalled();
   });

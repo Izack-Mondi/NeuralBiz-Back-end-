@@ -1,6 +1,9 @@
 import { Resolver, Query, Args, Mutation, ID, Int } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { FeedService } from './feed.service';
+import { PostsService } from './posts.service';
+import { ProductsService } from './products.service';
+import { PlaybackService } from './playback.service';
 import {
   FeedInput,
   FeedConnection,
@@ -19,7 +22,12 @@ import { Throttle } from '@nestjs/throttler';
 
 @Resolver()
 export class FeedResolver {
-  constructor(private readonly feedService: FeedService) {}
+  constructor(
+    private readonly feedService: FeedService,
+    private readonly postsService: PostsService,
+    private readonly productsService: ProductsService,
+    private readonly playbackService: PlaybackService,
+  ) {}
 
   @Query(() => FeedConnection)
   @UseGuards(GqlAuthGuard)
@@ -39,7 +47,7 @@ export class FeedResolver {
     @Args('category', { nullable: true }) category?: string,
     @Args('sellerId', { type: () => ID, nullable: true }) sellerId?: string,
   ): Promise<ProductConnection> {
-    return this.feedService.getProducts(user.sub, first ?? 10, after, category, sellerId);
+    return this.productsService.getProducts(user.sub, first ?? 10, after, category, sellerId);
   }
 
   @Query(() => FeedConnection)
@@ -49,7 +57,7 @@ export class FeedResolver {
     @Args('first', { type: () => Int, nullable: true, defaultValue: 10 }) first?: number,
     @Args('after', { nullable: true }) after?: string,
   ): Promise<FeedConnection> {
-    return this.feedService.getMyPosts(first ?? 10, after, user.sub);
+    return this.postsService.getMyPosts(first ?? 10, after, user.sub);
   }
 
   @Query(() => PostContact)
@@ -59,13 +67,13 @@ export class FeedResolver {
     @CurrentUser() user: any,
     @Args('postId') postId: string,
   ): Promise<PostContact> {
-    return this.feedService.getPostContact(postId, user.sub);
+    return this.playbackService.getPostContact(postId, user.sub);
   }
 
   @Query(() => PlaybackResponse)
   @UseGuards(GqlAuthGuard)
   async playback(@Args('postId', { type: () => ID }) postId: string): Promise<PlaybackResponse> {
-    return this.feedService.getPlayback(postId);
+    return this.playbackService.getPlayback(postId);
   }
 
   @Mutation(() => String, { deprecationReason: 'Use createPostWithInput.' })
@@ -82,7 +90,7 @@ export class FeedResolver {
     @Args('productId', { nullable: true }) productId?: string,
     @Args('serviceId', { nullable: true }) serviceId?: string,
   ): Promise<string> {
-    const post = await this.feedService.createPost({
+    const post = await this.postsService.createPost({
       authorId: user.sub,
       type,
       caption,
@@ -104,7 +112,7 @@ export class FeedResolver {
     @CurrentUser() user: { sub: string },
     @Args('input') input: CreatePostInput,
   ): Promise<string> {
-    const post = await this.feedService.createPost({
+    const post = await this.postsService.createPost({
       ...input,
       authorId: user.sub,
     });
@@ -126,9 +134,10 @@ export class FeedResolver {
     @Args('thumbnailUrl', { nullable: true }) thumbnailUrl?: string,
     @Args('mediaType', { nullable: true }) mediaType?: MediaType,
     @Args('mediaAssetId', { nullable: true }) mediaAssetId?: string,
-    @Args('postToFeed', { type: () => Boolean, nullable: true, defaultValue: true }) postToFeed = true,
+    @Args('postToFeed', { type: () => Boolean, nullable: true, defaultValue: true })
+    postToFeed = true,
   ): Promise<string> {
-    const product = await this.feedService.createProduct({
+    const product = await this.productsService.createProduct({
       name,
       description,
       price,
@@ -153,7 +162,7 @@ export class FeedResolver {
     @CurrentUser() user: { sub: string },
     @Args('input') input: CreateProductInput,
   ): Promise<string> {
-    const product = await this.feedService.createProduct({
+    const product = await this.productsService.createProduct({
       ...input,
       sellerId: user.sub,
     });
@@ -172,11 +181,13 @@ export class FeedResolver {
 
   @Query(() => [PlaybackResponse])
   @UseGuards(GqlAuthGuard)
-  async playbacks(@Args('postIds', { type: () => [ID] }) postIds: string[]): Promise<PlaybackResponse[]> {
+  async playbacks(
+    @Args('postIds', { type: () => [ID] }) postIds: string[],
+  ): Promise<PlaybackResponse[]> {
     if (postIds.length > 3) {
       throw new Error('Maximum 3 post IDs allowed for prefetching');
     }
-    return this.feedService.getPlaybacks(postIds);
+    return this.playbackService.getPlaybacks(postIds);
   }
 
   @Mutation(() => String, { deprecationReason: 'Use createServiceOffering instead.' })
@@ -195,7 +206,7 @@ export class FeedResolver {
     @Args('thumbnailUrl', { nullable: true }) thumbnailUrl?: string,
     @Args('mediaType', { nullable: true }) mediaType?: MediaType,
   ): Promise<string> {
-    const service = await this.feedService.createService({
+    const service = await this.postsService.createService({
       name,
       description,
       category,
@@ -213,7 +224,8 @@ export class FeedResolver {
   }
 
   @Mutation(() => String, {
-    deprecationReason: 'Use createServiceOffering instead; legacy services are not published to the feed.',
+    deprecationReason:
+      'Use createServiceOffering instead; legacy services are not published to the feed.',
   })
   @UseGuards(GqlAuthGuard)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
@@ -221,7 +233,7 @@ export class FeedResolver {
     @CurrentUser() user: { sub: string },
     @Args('input') input: CreateServiceInput,
   ): Promise<string> {
-    const service = await this.feedService.createService({
+    const service = await this.postsService.createService({
       ...input,
       providerId: user.sub,
     });
@@ -235,6 +247,6 @@ export class FeedResolver {
     @CurrentUser() user: { sub: string },
     @Args('postId', { type: () => ID }) postId: string,
   ): Promise<string> {
-    return this.feedService.deletePost(postId, user.sub);
+    return this.postsService.deletePost(postId, user.sub);
   }
 }

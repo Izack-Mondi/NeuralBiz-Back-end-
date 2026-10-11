@@ -1,5 +1,19 @@
 import { Field, ObjectType, InputType, ID, Int, Float } from '@nestjs/graphql';
-import { IsNotEmpty, IsString, IsOptional, IsArray, IsInt, IsNumber, IsIn, Min, Max, ArrayMaxSize, Length, IsEnum, IsUUID } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsArray,
+  IsInt,
+  IsNumber,
+  IsIn,
+  Min,
+  Max,
+  ArrayMaxSize,
+  Length,
+  IsEnum,
+  IsUUID,
+} from 'class-validator';
 import { KENYA_COUNTIES } from '../common/kenya-counties';
 import { Vertical } from '../common/vertical-assignment';
 import { PageInfo, PostAuthor, PostMedia } from '../feed/feed.types';
