@@ -9,6 +9,12 @@ coverage/
 # Production
 dist/
 build/
+.kilo/
+prisma/seed.js
+*.d.ts
+*.js.map
+test/*.js
+tsconfig.tsbuildinfo
 
 # Environment
 .env
