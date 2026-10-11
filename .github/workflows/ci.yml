@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: neuralbiz_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d neuralbiz_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/neuralbiz_test?schema=public
+      JWT_SECRET: ci-only-test-secret
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      DATABASE_URL_TEST: ${{ vars.DATABASE_URL_TEST }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma validate
+      - run: npx prisma generate
+      - run: npm run build
+      - name: Build Docker images
+        run: |
+          docker build --file Dockerfile --tag neuralbiz-web:ci .
+          docker build --file Dockerfile.worker --tag neuralbiz-worker:ci .
+      - name: Run unit tests
+        run: |
+          node scripts/assert-dev-db.js
+          npm test -- --runInBand
+      - name: Run integration tests
+        if: ${{ env.DATABASE_URL_TEST != '' }}
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL_TEST }}
+        run: |
+          node -e "const url = new URL(process.env.DATABASE_URL); if (!['localhost', '127.0.0.1'].includes(url.hostname)) { console.error('DATABASE_URL_TEST must point to the local CI Postgres service.'); process.exit(1); }"
+          node scripts/assert-dev-db.js
+          npx prisma db push
+          npm run test:int

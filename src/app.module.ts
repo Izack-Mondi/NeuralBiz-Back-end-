@@ -13,11 +13,13 @@ import { MediaModule } from './media/media.module';
 import { ServiceOfferingsModule } from './service-offerings/service-offerings.module';
 import { GqlThrottlerGuard } from './common/gql-throttler.guard';
 import { StorageModule } from './storage/storage.module';
+import { configValidationSchema } from './config/env-validation.schema';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validationSchema: configValidationSchema,
     }),
     ThrottlerModule.forRoot([
       {
