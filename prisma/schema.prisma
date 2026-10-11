@@ -50,6 +50,10 @@ model User {
   serviceOfferings ServiceOffering[]
   postViews       PostView[]
   activityEvents  ActivityEvent[]
+  sentRequests    ConnectionRequest[] @relation("SentRequests")
+  receivedRequests ConnectionRequest[] @relation("ReceivedRequests")
+  connections1    Connection[] @relation("Connections1")
+  connections2    Connection[] @relation("Connections2")
 }
 
 model RefreshToken {
@@ -242,4 +246,41 @@ model ActivityEvent {
 
   @@index([type, createdAt])
   @@index([userId])
+}
+
+enum ConnectionRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+model ConnectionRequest {
+  id          String                @id @default(uuid())
+  senderId    String
+  sender      User                  @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId  String
+  receiver    User                  @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  status      ConnectionRequestStatus @default(PENDING)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@unique([senderId, receiverId])
+  @@index([senderId, status])
+  @@index([receiverId, status])
+  @@index([createdAt])
+}
+
+model Connection {
+  id        String   @id @default(uuid())
+  user1Id   String
+  user1     User     @relation("Connections1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2Id   String
+  user2     User     @relation("Connections2", fields: [user2Id], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([user1Id, user2Id])
+  @@index([user1Id])
+  @@index([user2Id])
+  @@index([createdAt])
 }
