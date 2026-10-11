@@ -16,6 +16,7 @@ import { StorageModule } from './storage/storage.module';
 import { configValidationSchema } from './config/env-validation.schema';
 import { ActivityModule } from './activity/activity.module';
 import { PlatformStatsModule } from './platform/platform-stats.module';
+import { NetworkModule } from './network/network.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { PlatformStatsModule } from './platform/platform-stats.module';
     StorageModule,
     ActivityModule,
     PlatformStatsModule,
+    NetworkModule,
   ],
   providers: [
     {
