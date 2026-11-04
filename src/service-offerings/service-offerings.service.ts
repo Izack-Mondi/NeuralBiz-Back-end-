@@ -96,6 +96,7 @@ export class ServiceOfferingsService {
           caption: input.description || input.title,
           mediaAssetId: input.demoAssetId,
           offeringId: offering.id,
+          mediaType: input.demoAssetId ? 'VIDEO' : 'IMAGE',
         },
       });
 

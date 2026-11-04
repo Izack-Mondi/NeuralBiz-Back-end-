@@ -167,25 +167,50 @@ export class FeedService {
       );
     }
 
-    const rejectionFilter: Prisma.PostWhereInput = {
-      NOT: [
-        { mediaAsset: { is: { status: MediaAssetStatus.REJECTED } } },
-        {
-          offering: {
-            is: {
-              demoAsset: { is: { status: MediaAssetStatus.REJECTED } },
+    const rejectionFilter: Prisma.PostWhereInput = viewerId
+    ? {
+        OR: [
+          { authorId: viewerId }, // Author can see their own rejected posts
+          {
+            NOT: [
+              { mediaAsset: { is: { status: MediaAssetStatus.REJECTED } } },
+              {
+                offering: {
+                  is: {
+                    demoAsset: { is: { status: MediaAssetStatus.REJECTED } },
+                  },
+                },
+              },
+              {
+                product: {
+                  is: {
+                    mediaAsset: { is: { status: MediaAssetStatus.REJECTED } },
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      }
+    : {
+        NOT: [
+          { mediaAsset: { is: { status: MediaAssetStatus.REJECTED } } },
+          {
+            offering: {
+              is: {
+                demoAsset: { is: { status: MediaAssetStatus.REJECTED } },
+              },
             },
           },
-        },
-        {
-          product: {
-            is: {
-              mediaAsset: { is: { status: MediaAssetStatus.REJECTED } },
+          {
+            product: {
+              is: {
+                mediaAsset: { is: { status: MediaAssetStatus.REJECTED } },
+              },
             },
           },
-        },
-      ],
-    };
+        ],
+      };
 
     const posts = await this.prisma.post.findMany({
       where: {
