@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ID, Int } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { NetworkService } from './network.service';
 import {
@@ -27,7 +27,7 @@ export class NetworkResolver {
   async searchUsers(
     @CurrentUser() user: any,
     @Args('query', { nullable: true }) query?: string,
-    @Args('first', { nullable: true, defaultValue: 20 }) first?: number,
+    @Args('first', { nullable: true, defaultValue: 20, type: () => Int }) first?: number,
     @Args('after', { nullable: true }) after?: string,
   ): Promise<PaginatedUsers> {
     return this.networkService.searchUsers(user.sub, query, first, after);
@@ -90,7 +90,7 @@ export class NetworkResolver {
   async pendingRequests(
     @CurrentUser() user: any,
     @Args('type', { nullable: true, defaultValue: 'all' }) type?: 'incoming' | 'outgoing' | 'all',
-    @Args('first', { nullable: true, defaultValue: 20 }) first?: number,
+    @Args('first', { nullable: true, defaultValue: 20, type: () => Int }) first?: number,
     @Args('after', { nullable: true }) after?: string,
   ): Promise<PaginatedConnectionRequests> {
     return this.networkService.getPendingRequests(user.sub, type, first, after);
@@ -105,7 +105,7 @@ export class NetworkResolver {
   @Throttle({ default: { limit: 30, ttl: 60000 } })
   async connections(
     @CurrentUser() user: any,
-    @Args('first', { nullable: true, defaultValue: 20 }) first?: number,
+    @Args('first', { nullable: true, defaultValue: 20, type: () => Int }) first?: number,
     @Args('after', { nullable: true }) after?: string,
   ): Promise<PaginatedConnections> {
     return this.networkService.getConnections(user.sub, first, after);

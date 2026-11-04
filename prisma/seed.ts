@@ -1,7 +1,7 @@
 import { PrismaClient, Vertical } from '@prisma/client';
 
 const prisma = new PrismaClient();
-const SYSTEM_USER_ID = '00000000-0000-4000-8000-000000000001';
+const SYSTEM_USER_ID = 'system-insights-user';
 
 const opportunities = [
   {
@@ -47,24 +47,24 @@ async function main(): Promise<void> {
     where: { id: SYSTEM_USER_ID },
     create: {
       id: SYSTEM_USER_ID,
-      fullName: 'Nexify Opportunities',
-      email: 'opportunities@nexify.example',
+      fullName: 'NeuralBiz Insights',
+      email: 'insights@neuralbiz.app',
       location: 'Kenya',
       county: 'Nairobi',
       interests: ['agriculture', 'business'],
       status: 'ACTIVE',
       emailVerified: true,
-      phoneVerified: false,
+      phoneVerified: true,
     },
     update: {
-      fullName: 'Nexify Opportunities',
-      email: 'opportunities@nexify.example',
+      fullName: 'NeuralBiz Insights',
+      email: 'insights@neuralbiz.app',
       location: 'Kenya',
       county: 'Nairobi',
       interests: ['agriculture', 'business'],
       status: 'ACTIVE',
       emailVerified: true,
-      phoneVerified: false,
+      phoneVerified: true,
     },
   });
 
